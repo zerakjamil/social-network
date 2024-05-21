@@ -1,0 +1,1 @@
+<div style="height:60px; width:100%;" class="footer_bar"></div>

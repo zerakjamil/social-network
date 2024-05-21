@@ -1,0 +1,7 @@
+{
+    "require": {
+        "twilio/sdk": "^7.3",
+        "mobiledetect/mobiledetectlib": "^3.74"
+    }
+    
+}
