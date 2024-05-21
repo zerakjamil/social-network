@@ -1,7 +1,12 @@
 <?php
-session_start();
 // mysqli database connection
-const DB_NAME = 'netlink';
-const DB_HOST = 'localhost';
-const DB_USER = 'root';
-const DB_PASS = '';
+return [
+    'database'=>[
+        'host'=>'localhost',
+        'user' => 'root',
+        'password' => '',
+        'port'=>3306,
+        'dbname'=>'netlink',
+        'charset'=>'utf8mb4',
+    ],
+];
