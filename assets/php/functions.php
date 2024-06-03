@@ -1,9 +1,11 @@
 <?php
 require 'Data.php';
 require 'Protection.php';
+require 'Validate.php';
 $config = require 'config.php';
 $db = new Data($config['database']);
 $protection = new Protection();
+$validate = new Validate();
 //function for showing pages
 function showPage($page,$data=""){
     include("assets/pages/$page.php");
@@ -619,9 +621,7 @@ function filterReq(){
 }
 function getBlockedUser(){
     global $db;
-    $query = " SELECT users.id as uid,block_list.user_id,block_list.blocked_user_id,block_list.id,users.first_name,users.last_name,users.username,users.profile_pic FROM block_list JOIN users on users.id = block_list.blocked_user_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $db->query(" SELECT users.id as uid,block_list.user_id,block_list.blocked_user_id,block_list.id,users.first_name,users.last_name,users.username,users.profile_pic FROM block_list JOIN users on users.id = block_list.blocked_user_id",[])->all();
 }
 function getRequests(){
     global $db;
@@ -1143,52 +1143,14 @@ function validateUpdateForm($form_data,$image_data,$bgimage){
 //function for updating profile
 
 function updateProfile($data,$imagedata,$bgimage){
-    global $db;
-    $first_name = mysqli_real_escape_string($db,$data['first_name']);
-    $last_name = mysqli_real_escape_string($db,$data['last_name']);
-    $username = mysqli_real_escape_string($db,$data['username']);
-    $oldpassword = mysqli_real_escape_string($db,$data['old_password']);
-    $password = mysqli_real_escape_string($db,$data['password']);
-    $repassword = mysqli_real_escape_string($db,$data['re_password']);
-    $bio = mysqli_real_escape_string($db,$data['bio']);
+    global $db,$protection,$validate;
+    $oldpassword = $data['old_password'];
+    $password = $data['password'];
+    $retry = $data['re_password'];
     $toggle = isset($_POST['locked']) && $_POST['locked'] == 1 ? 1 : 0;
-    $work = mysqli_real_escape_string($db,$data['work']);
-    $city = mysqli_real_escape_string($db,$data['city']);
-    $work_place = mysqli_real_escape_string($db,$data['work_place']);
-    $dob = mysqli_real_escape_string($db,$data['dateofbirth']);
-    if(md5($oldpassword) != $_SESSION['userdata']['password'])
-    {
-        $password = $_SESSION['userdata']['password'];
-    }elseif( !$data['old_password']){
-        $password = $_SESSION['userdata']['password'];
-    }elseif( !$data['password']){
-        $password = $_SESSION['userdata']['password'];
-    }elseif( !$data['re_password']){
-        $password = $_SESSION['userdata']['password'];
-    }
-    elseif(md5($password) == md5($_SESSION['userdata']['password'])){
-        $password = $_SESSION['userdata']['password'];
-    }elseif(!empty($password) && empty($oldpassword) && empty($repassword)){
-        $password = $_SESSION['userdata']['password'];
-    }
-    elseif(!empty($password) && !empty($oldpassword) && empty($repassword)){
-        $password = $_SESSION['userdata']['password'];
-    }
-    elseif(!empty($password) && empty($oldpassword) && !empty($repassword)){
-        $password = $_SESSION['userdata']['password'];
-    }
-    elseif(!empty($oldpassword) && empty($password) && empty($repassword)){
-        $password = $_SESSION['userdata']['password'];
-    } elseif(empty($oldpassword) && empty($password) && !empty($repassword)){
-        $password = $_SESSION['userdata']['password'];
-    }
-    elseif(!empty($password) && !empty($repassword) && $password != $repassword){
-        $password = $_SESSION['userdata']['password'];
-    }else{
-        $password = md5($password);
-        $_SESSION['userdata']['password']=$password;
 
-    }
+    $validate->validatePassword($oldpassword,$password,$retry);
+
     $profile_pic="";
     if($imagedata['name']){
         $image_name = time().basename($imagedata['name']);
@@ -1205,12 +1167,23 @@ function updateProfile($data,$imagedata,$bgimage){
         $bg_pic=", bg_pic='$bg_name'";
     }
 
-
-    $query = "UPDATE users SET first_name = '$first_name', last_name='$last_name',username='$username',bio='$bio' , work ='$work',city='$city',work_place='$work_place',DoB='$dob',islocked ='$toggle',password='$password' $profile_pic  $bg_pic   WHERE id=".$_SESSION['userdata']['id'];
-    return mysqli_query($db,$query);
-
+return $db->query("UPDATE users SET first_name = :first, last_name=:last,username=:username,bio=:bio, work =:work,city=:city,work_place=:work_place:,
+                 DoB=:DoB,islocked =:toggle,password=:password , :profile_pic,  :bg_pic   WHERE id=:user",[
+        'first' => $data['first_name'],
+        'last' => $data['last_name'],
+        'username' => $data['username'],
+        'bio' => $data['bio'],
+        'work' => $data['work'],
+        'city' => $data['city'],
+        'work_place' => $data['work_place'],
+        'DoB' => $data['dateofbirth'],
+        'toggle' => $toggle,
+        'password' => $password,
+        'profile_pic' => $profile_pic,
+        'bg' => $bg_pic,
+        'user' => $_SESSION['userdata']['id'],
+]);
 }
-
 
 function validatePostText($post_text){
     $response['status']=true;

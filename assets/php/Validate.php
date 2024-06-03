@@ -162,4 +162,41 @@ class Validate
 
         return $responsee;
     }
+
+    public function validatePassword($old,$new,$retry)
+    {
+        global $protection;
+        if($protection->passwordHash($old) != $_SESSION['userdata']['password'])
+        {
+            $password = $_SESSION['userdata']['password'];
+        }elseif( !$old){
+            $password = $_SESSION['userdata']['password'];
+        }elseif( !$new){
+            $password = $_SESSION['userdata']['password'];
+        }elseif( !$retry){
+            $password = $_SESSION['userdata']['password'];
+        }
+        elseif($protection->passwordHash($new) == $protection->passwordHash($_SESSION['userdata']['password'])){
+            $password = $_SESSION['userdata']['password'];
+        }elseif(!empty($new) && empty($old) && empty($retry)){
+            $password = $_SESSION['userdata']['password'];
+        }
+        elseif(!empty($new) && !empty($old) && empty($retry)){
+            $password = $_SESSION['userdata']['password'];
+        }
+        elseif(!empty($new) && empty($old) && !empty($retry)){
+            $password = $_SESSION['userdata']['password'];
+        }
+        elseif(!empty($old) && empty($new) && empty($retry)){
+            $password = $_SESSION['userdata']['password'];
+        } elseif(empty($old) && empty($new) && !empty($retry)){
+            $password = $_SESSION['userdata']['password'];
+        }
+        elseif(!empty($new) && !empty($retry) && $new != $retry){
+            $password = $_SESSION['userdata']['password'];
+        }else{
+            $password = $protection->passwordHash($new);
+            $_SESSION['userdata']['password']=$new;
+        }
+    }
     }
