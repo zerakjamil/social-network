@@ -1,8 +1,9 @@
 <?php
 require 'Data.php';
+require 'Protection.php';
 $config = require 'config.php';
 $db = new Data($config['database']);
-$dataP = new dataProtection();
+$protection = new Protection();
 //function for showing pages
 function showPage($page,$data=""){
     include("assets/pages/$page.php");
@@ -33,23 +34,23 @@ function editpost($post_id,$response){
     return $post_text;
 }
 function contactUs($name,$email,$msg){
-    global $db,$dataP;
+    global $db;
     return $db->query("INSERT INTO conatc_us (name,email,message,submit) VALUES(:name,:email,:message,:submit)",[
-        'name' => $dataP->realEscape($db,$name),
-        'email' => $dataP->realEscape($db,$email),
-        'message' => $dataP->realEscape($db,$msg),
+        'name' => $name,
+        'email' => $email,
+        'message' => $msg,
         'submit' => 1,
     ]);
 }
 
 function reportPost($reporter_id,$post_id,$reason,$report_msg){
-    global $db,$dataP;
+    global $db;
     return $db->query("INSERT INTO reports (user_id,reporter_id,post_id,description,reason)
 VALUES(:user_id, :reporter_id, :post_id, :report_msg, :reason)",[
         'user_id' => $_SESSION['userdata']['id'],
         'reporter_id' => $reporter_id,
         'post_id' => $post_id,
-        'report_msg' => $dataP->realEscape($db,$report_msg),
+        'report_msg' => $report_msg,
         'reason' => $reason,
     ]);
 }
@@ -109,7 +110,7 @@ function getActiveChatUserIds(){
 
 function getMessages($user_id){
     global $db;
-    return $db->query("SELECT * FROM messages WHERE (to_user_id = :to && from_user_id = :from) || (from_user_id = :to && to_user_id = :from) ORDER BY id DESC",[
+    return $query = $db->query("SELECT * FROM messages WHERE (to_user_id = :to && from_user_id = :from) || (from_user_id = :to && to_user_id = :from) ORDER BY id DESC",[
         'to' => $_SESSION['userdata']['id'],
         'from' => $user_id,
     ])->all();
@@ -176,72 +177,73 @@ function followUser($user_id){
 function acceptUser($user_id){
     global $db;
     $cu = getUser($_SESSION['userdata']['id']);
-    $current_user=$_SESSION['userdata']['id'];
-    $query="UPDATE follow_list SET status='' WHERE user_id=$current_user";
     createNotification($cu['id'],$user_id,"داواکەی تۆی قەبووڵ کرد");
-    return mysqli_query($db,$query);
-
+    return $db->query("UPDATE follow_list SET status='' WHERE user_id=:user",[
+            'user' => $_SESSION['userdata']['id'],
+    ]);
 }
 function declineUser(){
     global $db;
-    $current_user=$_SESSION['userdata']['id'];
-    $query="DELETE FROM follow_list WHERE user_id=$current_user";
-
-    return mysqli_query($db,$query);
+    return $db->query("DELETE FROM follow_list WHERE user_id=:user",[
+            'user' => $_SESSION['userdata']['id'],
+    ]);
 }
 
 //function for blocking the user
 function blockUser($blocked_user_id){
     global $db;
-    $cu = getUser($_SESSION['userdata']['id']);
-    $current_user=$_SESSION['userdata']['id'];
-    $query="INSERT INTO block_list(user_id,blocked_user_id) VALUES($current_user,$blocked_user_id)";
-    $query2="DELETE FROM follow_list WHERE follower_id=$current_user && user_id=$blocked_user_id";
-    mysqli_query($db,$query2);
-    $query3="DELETE FROM follow_list WHERE follower_id=$blocked_user_id && user_id=$current_user";
-    mysqli_query($db,$query3);
-
-
-    return mysqli_query($db,$query);
-
+    $db->query("INSERT INTO block_list(user_id,blocked_user_id) VALUES(:user,:blocked)",[
+            'user' => $_SESSION['userdata']['id'],
+            'blocked' => $blocked_user_id,
+    ]);
+    $db->query("DELETE FROM follow_list WHERE follower_id=:user AND user_id=:blocked",[
+            'user' => $_SESSION['userdata']['id'],
+            'blocked' => $blocked_user_id,
+    ]);
+    $db->query("DELETE FROM follow_list WHERE follower_id=:user AND user_id=:user_id",[
+            'user' => $blocked_user_id,
+            'user_id' => $_SESSION['userdata']['id'],
+    ]);
+    return true;
 }
 
 //for unblocking the user
 function unblockUser($user_id){
     global $db;
-    $current_user=$_SESSION['userdata']['id'];
-    $query="DELETE FROM block_list WHERE user_id=$current_user && blocked_user_id=$user_id";
-    return mysqli_query($db,$query);
+    return $db->query("DELETE FROM block_list WHERE user_id=$current_user && blocked_user_id=$user_id",[
+            'user' => $_SESSION['userdata']['id'],
+            'blocked' => $user_id,
+    ]);
 }
 
 //function checkLikeStatus
 function checkLikeStatus($post_id){
     global $db;
-    $current_user = $_SESSION['userdata']['id'];
-    $query="SELECT count(*) as row FROM likes WHERE user_id=$current_user && post_id=$post_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+    $query = $db->query("SELECT count(*) as `row` FROM likes WHERE user_id=:id && post_id=:post_id",[
+            'id' => $_SESSION['userdata']['id'],
+            'post_id' => $post_id,
+    ])->find();
+    return $query['row'];
 }
 
 function checkLikeStatusC($comment_id){
     global $db;
-    $current_user = $_SESSION['userdata']['id'];
-    $query="SELECT count(*) as row FROM comment_likes WHERE user_id=$current_user && comment_id=$comment_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+    return $db->query("SELECT count(*) as `row` FROM comment_likes WHERE user_id=:id AND comment_id=:comment",[
+        'id' => $_SESSION['userdata']['id'],
+        'comment' => $comment_id,
+    ])->find();
 }
 //function for like the post
 function like($post_id){
     global $db;
-    $current_user=$_SESSION['userdata']['id'];
-    $query="INSERT INTO likes(post_id,user_id) VALUES($post_id,$current_user)";
     $poster_id = getPosterId($post_id);
-
-    if($poster_id!=$current_user){
-        createNotification($current_user,$poster_id,"پۆستەکەی تۆی بە دڵە",$post_id);
+    if($poster_id!=$_SESSION['userdata']['id']){
+        createNotification($_SESSION['userdata']['id'],$poster_id,"پۆستەکەی تۆی بە دڵە",$post_id);
     }
-    return mysqli_query($db,$query);
-
+    return $db->query("INSERT INTO likes(post_id,user_id) VALUES(:post,:user)",[
+        'post' => $post_id,
+        'user' => $_SESSION['userdata']['id']
+    ]);
 }
 
 //liking comments
@@ -315,37 +317,34 @@ function filterInputValue($input) {
 //function for getting likes count
 function getComments($post_id){
     global $db;
-    $query="SELECT * FROM comments WHERE post_id=$post_id ORDER BY id DESC";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $db->query("SELECT * FROM comments WHERE post_id=:id ORDER BY id DESC",[
+            'id' => $post_id,
+    ])->all();
 }
 
 function getReplies($comment_id){
     global $db;
-    $query="SELECT * FROM replies WHERE comment_id=$comment_id ORDER BY id DESC";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+return $db->query("SELECT * FROM replies WHERE comment_id=:id ORDER BY id DESC",[
+        'id' => $comment_id,
+])->all();
 }
 
 //get notifications
 
 function getNotifications(){
-    $cu_user_id = $_SESSION['userdata']['id'];
-
     global $db;
-    $query="SELECT * FROM notifications WHERE to_user_id=$cu_user_id ORDER BY id DESC";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $db->query("SELECT * FROM notifications WHERE to_user_id=:user ORDER BY id DESC",[
+            'user' => $_SESSION['userdata']['id'],
+    ])->all();
 }
 
 
 function getUnreadNotificationsCount(){
-    $cu_user_id = $_SESSION['userdata']['id'];
-
     global $db;
-    $query="SELECT count(*) as row FROM notifications WHERE to_user_id=$cu_user_id && read_status=0 ORDER BY id DESC";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+   $query = $db->query("SELECT count(*) as `row` FROM notifications WHERE to_user_id=:to_user AND read_status=0 ORDER BY id DESC",[
+           'to_user'=>$_SESSION['userdata']['id'],
+   ])->find();
+   return $query['row'];
 }
 
 function show_time($time){
@@ -353,10 +352,10 @@ function show_time($time){
 }
 
 function setNotificationStatusAsRead(){
-    $cu_user_id = $_SESSION['userdata']['id'];
     global $db;
-    $query="UPDATE notifications SET read_status=1 WHERE to_user_id=$cu_user_id";
-    return mysqli_query($db,$query);
+    return $db->query("UPDATE notifications SET read_status=1 WHERE to_user_id=:id",[
+            'id' => $_SESSION['userdata']['id'],
+    ]);
 }
 
 
@@ -364,16 +363,16 @@ function setNotificationStatusAsRead(){
 //function for getting likes count
 function getLikes($post_id){
     global $db;
-    $query="SELECT * FROM likes WHERE post_id=$post_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $db->query("SELECT * FROM likes WHERE post_id=:id",[
+            'id' => $post_id,
+    ])->all();
 }
 
 function getLikesC($comment_id){
     global $db;
-    $query="SELECT * FROM comment_likes WHERE comment_id=$comment_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $db->query("SELECT * FROM comment_likes WHERE comment_id=:id",[
+            'id' => $comment_id,
+    ])->all();
 }
 
 
@@ -445,261 +444,94 @@ function showFormData($field){
 //for checking duplicate email
 function isEmailRegistered($email){
     global $db;
-    $query="SELECT count(*) as row FROM users WHERE email='$email'";
-    $run=mysqli_query($db,$query);
-    $return_data = mysqli_fetch_assoc($run);
-    return $return_data['row'];
+    $query=$db->query("SELECT count(*) as `row` FROM users WHERE email=:email",[
+            'email' => $email,
+    ])->find();
+    return $query['row'];
 }
 
 function isPhoneRegistered($phone){
     global $db;
-    $query="SELECT count(*) as row FROM users WHERE phone='$phone'";
-    $run=mysqli_query($db,$query);
-    $return_data = mysqli_fetch_assoc($run);
-    return $return_data['row'];
+    $query=$db->query("SELECT count(*) as `row` FROM users WHERE phone= :phone",[
+            'phone' => $phone,
+    ])->find();
+    return $query['row'];
 }
-function isMarketRegistered($user){
+function isMarketRegistered($userId){
     global $db;
-    $query="SELECT count(*) as row FROM marke_user WHERE user_id='$user'";
-    $run=mysqli_query($db,$query);
-    $return_data = mysqli_fetch_assoc($run);
-    return $return_data['row'];
+    $query=$db->query("SELECT count(*) as `row` FROM marke_user WHERE user_id= :user_id",[
+            'user_id' => $userId,
+    ])->find();
+    return $query['row'];
 }
-//for checking duplicate username
+
 function isUsernameRegistered($username){
     global $db;
-    $query="SELECT count(*) as row FROM users WHERE username='$username'";
-    $run=mysqli_query($db,$query);
-    $return_data = mysqli_fetch_assoc($run);
-    return $return_data['row'];
+    $query= $db->query("SELECT count(*) as `row` FROM users WHERE username= :username",[
+            'username' => $username,
+    ])->find();
+    return $query['row'];
 }
 
 //for checking duplicate username by other
 function isUsernameRegisteredByOther($username){
     global $db;
     $user_id=$_SESSION['userdata']['id'];
-    $query="SELECT count(*) as row FROM users WHERE username='$username' && id!=$user_id";
-    $run=mysqli_query($db,$query);
-    $return_data = mysqli_fetch_assoc($run);
-    return $return_data['row'];
+    $query= $db->query("SELECT count(*) as `row` FROM users WHERE username=:username && id!= :user_id",[
+            'username' => $username,
+            'user_id' => $user_id,
+    ])->find();
+    return $query['row'];
 }
 // form blocked accounts showing lists
-function isBlocked($user){
+function isBlocked($userId){
     global $db;
-    $query="SELECT count(*) as row FROM block_list WHERE user_id = '$user'";
-    $run=mysqli_query($db,$query);
-    $return_data = mysqli_fetch_assoc($run);
-    return $return_data['row'];
-
+    $query=$db->query("SELECT count(*) as `row` FROM block_list WHERE user_id = :user_id",[
+            'user_id' => $userId,
+    ])->find();
+    return $query['row'];
 }
-function isNotified($user){
+function isNotified($userId){
     global $db;
-    $query="SELECT count(*) as row FROM notifications WHERE to_user_id = '$user'";
-    $run=mysqli_query($db,$query);
-    $return_data = mysqli_fetch_assoc($run);
-    return $return_data['row'];
+    $query=$db->query("SELECT count(*) as `row` FROM notifications WHERE to_user_id = :toUser",[
+            'toUser' => $userId,
+    ])->find();
+    return $query['row'];
 
 }
-//for validating the signup form
-function validateSignupForm($form_data){
-    $response=array();
-    $response['status']=true;
-
-    if(!$form_data['password']){
-        $response['msg']="تێپەرەوشە دانەنراوە";
-        $response['status']=false;
-        $response['field']='password';
-    }
-
-    if(!$form_data['username']){
-        $response['msg']="ناویبەکارهێنەر دانەنراوە";
-        $response['status']=false;
-        $response['field']='username';
-    }
-    if(!$form_data['phone']){
-        $response['msg']="ژمارەکەی تەلەفۆن دانەنراوە";
-        $response['status']=false;
-        $response['field']='phone';
-    }
-
-    if(!$form_data['username_email']){
-        $response['msg']="ئیمەیڵ دانەنراوە";
-        $response['status']=false;
-        $response['field']='email';
-    }
-
-    if(!$form_data['last_name']){
-        $response['msg']="ناوی دووەم دانەنراوە";
-        $response['status']=false;
-        $response['field']='last_name';
-    }
-    if(!$form_data['first_name']){
-        $response['msg']="ناوی یەکەم دا نەنراوە";
-        $response['status']=false;
-        $response['field']='first_name';
-    }
-    if(isEmailRegistered($form_data['username_email'])){
-        $response['msg']="ئەم ئیمەیڵە پێشتر تۆمارکراوە";
-        $response['status']=false;
-        $response['field']='email';
-    }
-    if(isPhoneRegistered($form_data['phone'])){
-        $response['msg']="ئەم ژمارەیە پێشتر تۆمارکراوە";
-        $response['status']=false;
-        $response['field']='phone';
-    }
-    if(isUsernameRegistered($form_data['username'])){
-        $response['msg']="ئەم ناوی بەکارهێنەرە پێشتر تۆمارکراوە";
-        $response['status']=false;
-        $response['field']='username';
-    }
-
-    return $response;
-
-}
-function validateMarketForm($name,$location,$text){
-    $response=array();
-    $response['status']=true;
-
-    if(!$name){
-        $response['msg']="ناوێک بۆ فرۆشگاکەت هەڵبژێرە";
-        $response['status']=false;
-        $response['field']='marketName';
-    }
-
-    if(!$location){
-        $response['msg']="تکایە ناونیشانی فرۆشگا یان خۆت دابنێ";
-        $response['status']=false;
-        $response['field']='location';
-    }
-    if(!$text){
-        $response['msg'] = "تکایە وەسفی فرۆشگاکەت بکە";
-        $response['status']=false;
-        $response['field']='market_text';
-    }
-
-    if(isMarketRegistered($_SESSION['userdata']['id'])){
-        $response['msg']="تۆ خاوەنی فرۆشگای تکایە فرۆشگای ئێستات بسرەوە ئینجا هەوڵبدەوە";
-        $response['status']=false;
-        $response['field']='marketName';
-    }
-    return $response;
-
-}
-//validating contact form
-function validateContactForm($name,$email,$msg){
-    $response=array();
-    $response['status']=true;
-
-    if(!$name){
-        $response['msg']="ناو دانەنراوە";
-        $response['status']=false;
-        $response['field']='contact_name';
-    }
-
-    if(!$email){
-        $response['msg']="ئیمەیڵ دانەنراوە";
-        $response['status']=false;
-        $response['field']='contact_email';
-    }
-    if(!$msg){
-        $response['msg']=" نامە نابێ بەتاڵ بێ";
-        $response['status']=false;
-        $response['field']='contact_message';
-    }
-    return $response;
-
-}
-
-//for validate the login form
-function validateLoginForm($form_data){
-    $response=array();
-    $response['status']=true;
-    $blank=false;
-
-    if(!$form_data['password']){
-        $response['msg']="تێپەرەوشە نەدراوە";
-        $response['status']=false;
-        $response['field']='password';
-        $blank=true;
-    }
-
-    if(!$form_data['username_email']){
-        $response['msg']="ناوی بەکارهێنەر/ئیمەیڵ نابێ بەتاڵ بێ";
-        $response['status']=false;
-        $response['field']='username_email';
-        $blank=true;
-    }
-
-    if(checkLockStatus($form_data['username_email'])){
-        $response['msg']=" ئەم ئەکاونتە قفڵ بووە ، تکایە دواتر هەوڵبدە ";
-        $response['status']=false;
-        $response['field']='password';
-    }
-
-    if(!$blank && !checkUser($form_data)['status'] ){
-        $response['msg']="هەڵەیەک هەیە ناتوانین تۆ بدۆزینەوە";
-        $response['status']=false;
-        $response['field']='checkuser';
-    }else{
-        $response['user']=checkUser($form_data)['user'];
-    }
-
-    return $response;
-
-}
-
 function unlockExpiredAccounts() {
     global $db;
-
-    $currentTime = time();
-    $currentTimeFormatted = date('Y-m-d H:i:s', $currentTime);
-
-    $query = "UPDATE users SET locked = 0, locked_until = NULL WHERE locked_until IS NOT NULL AND locked_until <= '$currentTimeFormatted'";
-    return mysqli_query($db, $query);
+    $currentTime = date('Y-m-d H:i:s', time());
+    $db->query("UPDATE users SET locked = 0, locked_until = NULL WHERE locked_until IS NOT NULL AND locked_until <= :nowTime",[
+        'nowTime' => $currentTime
+    ]);
+    return true;
 }
 
-function validateLoginFormA($form_data){
-    $responsee=array();
-    $responsee['status']=true;
 
-    if(!checkUser($form_data)['status'] ){
-        $responsee['msg']="هەڵەیەک هەیە ناتوانین تۆ بدۆزینەوە";
-        $responsee['status']=false;
-        $responsee['field']='checkuser';
-    }else{
-        $responsee['user']=checkUser($form_data)['user'];
-    }
-
-    return $responsee;
-
-}
 function checkLockStatus($username){
     global $db;
-    $query="SELECT count(*) as row FROM users WHERE username = '$username' and locked = 1";
-    $run=mysqli_query($db,$query);
-    $return_data = mysqli_fetch_assoc($run);
-    return $return_data['row'];
+    $query= $db->query("SELECT count(*) as `row` FROM users WHERE username = :username and locked = :locked",[
+         'username' => $username,
+        'locked' => 1,
+    ])->find();
+    return $query['row'];
 }
 
 //for checking the user
 function checkUser($login_data){
-    global $db;
-    $username_email = $login_data['username_email'];
-    $password = md5($login_data['password']);
+    global $db,$protection;
+    $query = "SELECT * FROM users WHERE (email = :username_email OR username = :username_email) AND password = :password";
+    $result = $db->query($query, [
+        'username_email' => $login_data['username_email'],
+        'password' => $protection->passwordHash($login_data['password']),
+    ])->find();
 
-    $query = "SELECT * FROM users WHERE (email=? OR username=?) AND password=?";
-    $stmt = mysqli_prepare($db, $query);
-    mysqli_stmt_bind_param($stmt, "sss", $username_email, $username_email, $password);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    $data['user'] = mysqli_fetch_assoc($result) ?? array();
-    if(count($data['user'])>0){
-        $data['status']=true;
-    }else{
-        $data['status']=false;
+    $data = [];
+    $data['user'] = $result ?: [];
 
-    }
+    $data['status'] = !empty($data['user']);
+//dd($data);
     return $data;
 }
 
@@ -707,26 +539,30 @@ function checkUser($login_data){
 //for getting userdata by id
 function getUser($user_id){
     global $db;
-    $query = "SELECT * FROM users WHERE id=$user_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run);
-
+    return $query = $db->query("SELECT * FROM users WHERE id=:id",[
+            'id' => $user_id,
+    ])->find();
 }
 
 //for cheking login details
-function loginAttempts($time,$ip_address,$username){
+function loginAttempts($time,$ip_address,$userId){
     global $db;
-    $query = "select count(*) as total_count from loginlogs where TryTime > $time and IpAddress='$ip_address' and user_id = '$username' ";
-    $query=mysqli_query($db,$query);
-    $check_login_row=mysqli_fetch_assoc($query);
-    return $check_login_row['total_count'];
+    $query = $db->query("select count(*) as total_count from loginlogs where TryTime > :time and IpAddress= :ip and user_id = :user ",[
+            'time' => $time,
+            'ip' => $ip_address,
+            'user' => $userId
+    ])->find();
+    return $query['total_count'];
 }
 function addingLoginAttempts($username,$ip_address){
     global $db;
     $try_time=time();
-    $username = mysqli_real_escape_string($db,$username);
-    $query = "insert into loginlogs(user_id,IpAddress,TryTime) values('$username','$ip_address','$try_time')";
-    return mysqli_query($db,$query);
+    $db->query("insert into loginlogs(user_id,IpAddress,TryTime) values(:username,:ip,:try)",[
+            'username' => $username,
+            'ip' => $ip_address,
+            'try' => $try_time,
+    ]);
+    return true;
 }
 function lockAccount($username){
     global $db;
@@ -746,30 +582,29 @@ function unlockAccount($username) {
     return mysqli_query($db, $query);
 }
 
-function deleteFromAttempts($ip_address,$username){
+function deleteFromAttempts($ip_address,$userId){
     global $db;
-    $query = "delete from loginlogs where IpAddress='$ip_address' and user_id = '$username'";
-    return mysqli_query($db,$query);
+     $db->query("delete from loginlogs where IpAddress= :user_id and user_id = :user_id",[
+             'ip' => $ip_address,
+            'user_id' => $userId,
+     ]);
 }
 function contact_modal(){
     global $db;
-    $query = "SELECT * FROM conatc_us";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run);
+    return $query = $db->query("SELECT * FROM conatc_us",[])->find();
 }
 
 function getUserL($user_id){
     global $db;
-    $query = "SELECT last_login FROM users WHERE id=$user_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run);
-
+    return $query = $db->query("SELECT last_login FROM users WHERE id=:id",[
+            'id' => $user_id,
+    ])->find();
 }
 function getMarket($user_id){
     global $db;
-    $query="SELECT * FROM marke_user WHERE user_id=$user_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run);
+    return $query = $db->query("SELECT * FROM marke_user WHERE user_id=:id",[
+            'id' => $user_id,
+    ]);
 }
 function filterReq(){
     $list = getRequests();
@@ -791,9 +626,9 @@ function getBlockedUser(){
 function getRequests(){
     global $db;
     $cu_user_id = $_SESSION['userdata']['id'];
-    $query="SELECT users.id as uid,follow_list.id,follow_list.follower_id,follow_list.user_id,follow_list.status,users.first_name,users.last_name,users.username,users.profile_pic,users.verify FROM follow_list JOIN users ON follow_list.follower_id = users.id WHERE follow_list.user_id=$cu_user_id && follow_list.status = 'p' ORDER BY id DESC";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $query = $db->query("SELECT users.id as uid,follow_list.id,follow_list.follower_id,follow_list.user_id,follow_list.status,users.first_name,users.last_name,users.username,users.profile_pic,users.verify FROM follow_list JOIN users ON follow_list.follower_id = users.id WHERE follow_list.user_id=:user && follow_list.status = 'p' ORDER BY id DESC",[
+            'user' => $cu_user_id
+    ])->all();
 }
 //for filtering the suggestion list
 function filterFollowSuggestion(){
@@ -824,25 +659,19 @@ function filterFollowSuggestionb(){
 function checkFollowStatus($user_id){
     global $db;
     $current_user = $_SESSION['userdata']['id'];
-    $query="SELECT count(*) as row FROM follow_list WHERE follower_id=$current_user && user_id=$user_id && status!='p'";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+    return $query = $db->query("SELECT count(*) as `row` FROM follow_list WHERE follower_id=:follower AND user_id=:user AND status!='p'",[
+        'follower' => $current_user,
+        'user' => $user_id,
+    ])->find();
 }
 function checkFollowStatusF($user_id){
     global $db;
     $current_user = $_SESSION['userdata']['id'];
-    $query="SELECT count(*) as row FROM follow_list WHERE follower_id=$user_id && user_id=$current_user && status!='p'";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+    return $query = $db->query("SELECT count(*) as `row` FROM follow_list WHERE follower_id=:follower AND user_id=:user AND status!='p'",[
+            'follower' => $user_id,
+            'user' => $current_user
+    ])->find();
 }
-function checkReelStatus($user_id){
-    global $db;
-    $current_user = $_SESSION['userdata']['id'];
-    $query="SELECT count(*) as row FROM follow_list WHERE (follower_id!=$current_user && user_id!=$user_id) || (follower_id=$user_id && user_id=$current_user )";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
-}
-
 function checkStatus($user_id){
     global $db;
     $current_user = $_SESSION['userdata']['id'];
@@ -877,10 +706,10 @@ function checkB($user_id){
 
 function checkBS($user_id){
     global $db;
-    $current_user = $_SESSION['userdata']['id'];
-    $query="SELECT count(*) as row FROM block_list WHERE user_id=$current_user && blocked_user_id=$user_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+return $db->query("SELECT count(*) as `row` FROM block_list WHERE user_id=:user AND blocked_user_id=:blocked",[
+        'user' => $_SESSION['userdata']['id'],
+        'blocked' => $user_id,
+])->find();
 }
 //
 function checkLCK($user_id){
@@ -894,61 +723,58 @@ function checkLCK($user_id){
 //for getting users for follow suggestions
 function getFollowSuggestions(){
     global $db;
-
     $current_user = $_SESSION['userdata']['id'];
-    $query = "SELECT * FROM users WHERE id!=$current_user";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $query = $db->query("SELECT * FROM users WHERE id!=:id",[
+            'id' => $current_user,
+    ])->all();
 }
 
 //get followers count
 function getFollowers($user_id){
     global $db;
-    $query = "SELECT * FROM follow_list WHERE user_id=$user_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $db->query("SELECT * FROM follow_list WHERE user_id=:user",[
+            'user' => $user_id,
+    ])->all();
 }
 
 //get followers count
 function getFollowing($user_id){
     global $db;
-    $query = "SELECT * FROM follow_list WHERE follower_id=$user_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $db->query("SELECT * FROM follow_list WHERE follower_id=:user",[
+            'user' => $user_id,
+    ])->all();
 }
 
 //for getting posts by id
 function getPostById($user_id){
     global $db;
-    $query = "SELECT * FROM posts WHERE user_id=$user_id ORDER BY id DESC";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
-
+    return $db->query("SELECT * FROM posts WHERE user_id=:user ORDER BY id DESC",[
+            'user' => $user_id,
+    ])->all();
 }
 
 //fir getting reels by id
 function getReelsById($user_id){
     global $db;
-    $query = "SELECT * FROM reels WHERE user_id=$user_id ORDER BY id DESC";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
-
+    return $db->query("SELECT * FROM reels WHERE user_id=:user ORDER BY id DESC",[
+            'user' => $user_id,
+    ])->all();
 }
 //for getting post
 function getPosterId($post_id){
     global $db;
-    $query = "SELECT user_id FROM posts WHERE id=$post_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['user_id'];
+    return $db->query("SELECT user_id FROM posts WHERE id=:id",[
+        'id' => $post_id,
+    ])->find();
 
 }
 
-function getPosterIdC($comment_id){
+function getPosterIdC($comment_id)
+{
     global $db;
-    $query = "SELECT user_id FROM comments WHERE id=$comment_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['user_id'];
-
+    return $db->query("SELECT user_id FROM comments WHERE id=:id",[
+        'id' => $comment_id,
+    ])->find();
 }
 
 function checklock($user_id){
@@ -976,88 +802,82 @@ function requesting($user_id){
     return mysqli_query($db,$query);
 }
 function getUnreadRequestCount(){
-    $cu_user_id = $_SESSION['userdata']['id'];
-
     global $db;
-    $query="SELECT count(*) as row FROM follow_list WHERE user_id=$cu_user_id && status='p' && read_status=0 ORDER BY id DESC";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+    $cu_user_id = $_SESSION['userdata']['id'];
+    $query = $db->query("SELECT count(*) as `row` FROM follow_list WHERE user_id=:user AND status='p' && read_status=0 ORDER BY id DESC",[
+            'user' => $cu_user_id,
+    ])->find();
+    return $query['row'];
 }
 
 function setRequestAsRead(){
-    $cu_user_id = $_SESSION['userdata']['id'];
     global $db;
-    $query="UPDATE follow_list SET read_status=1 WHERE user_id=$cu_user_id";
-    return mysqli_query($db,$query);
+    return $db->query("UPDATE follow_list SET read_status=1 WHERE user_id=:user",[
+            'user' => $_SESSION['userdata']['id']
+    ]);
 }
 
 //for getting userdata by username
 function getUserByUsername($username){
     global $db;
-    $query = "SELECT * FROM users WHERE username='$username'";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run);
-
-
-
+   return $db->query("SELECT * FROM users WHERE username=:username",[
+            'username' => $username,
+    ])->find();
 }
 
 //for getting posts
 function getPost(){
     global $db;
-    $query = "SELECT users.id as uid,posts.id,posts.user_id,posts.post_img,posts.coLock,posts.post_text,posts.created_at,users.first_name,users.last_name,users.username,users.profile_pic,users.verify,users.bio FROM posts JOIN users ON users.id=posts.user_id ORDER BY id DESC";
-
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $query = $db->query("SELECT users.id as uid,posts.id,posts.user_id,posts.post_img,posts.coLock,posts.post_text,posts.created_at,users.first_name,users.last_name,users.username,users.profile_pic,users.verify,users.bio FROM posts JOIN users ON users.id=posts.user_id ORDER BY id DESC",[])->all();
 
 }
 
 function reportPosts(){
     global $db;
-    $query = "SELECT users.id as uid, reports.user_id, reports.reporter_id, reports.post_id, reports.description, reports.reason, users.first_name, users.last_name, users.username, users.profile_pic, users.verify, posts.post_img, posts.post_text 
-    FROM reports 
-    JOIN users ON users.id=reports.reporter_id 
-    LEFT JOIN posts ON posts.id = reports.post_id 
-    ORDER BY reports.reporter_id DESC 
-    ";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $query = $db->query("SELECT users.id as uid, reports.user_id, reports.reporter_id, reports.post_id, reports.description, reports.reason, users.first_name, users.last_name, users.username, users.profile_pic, users.verify, posts.post_img, posts.post_text FROM reports JOIN users ON users.id=reports.reporter_id LEFT JOIN posts ON posts.id = reports.post_id ORDER BY reports.reporter_id DESC ",[])->all();
 }
 //for getting reels
 function getReels(){
     global $db;
-    $query = "SELECT users.id as uid,reels.id,reels.user_id,reels.reel_post,reels.coLock,reels.reel_text,reels.created_at,users.first_name,users.last_name,users.username,users.profile_pic,users.verify FROM reels JOIN users ON users.id=reels.user_id ORDER BY id DESC";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
+    return $query = $db->query("SELECT users.id as uid,reels.id,reels.user_id,reels.reel_post,reels.coLock,reels.reel_text,reels.created_at,users.first_name,users.last_name,users.username,users.profile_pic,users.verify 
+FROM reels JOIN users ON users.id=reels.user_id ORDER BY id DESC",[])->all();
 }
 
 function deletePost($post_id){
     global $db;
     $user_id=$_SESSION['userdata']['id'];
-    $dellike = "DELETE FROM likes WHERE post_id=$post_id && user_id=$user_id";
-    mysqli_query($db,$dellike);
-    $delcom = "DELETE FROM comments WHERE post_id=$post_id && user_id=$user_id";
-    mysqli_query($db,$delcom);
-    $not = "UPDATE notifications SET read_status=2 WHERE post_id=$post_id && to_user_id=$user_id";
-    mysqli_query($db,$not);
-
-
-    $query = "DELETE FROM posts WHERE id=$post_id";
-    return mysqli_query($db,$query);
+    $db->query("DELETE FROM likes WHERE post_id=:post_id AND user_id=:id",[
+            'post_id' => $post_id,
+        'id' => $user_id,
+    ]);
+    $db->query("DELETE FROM comments WHERE post_id=$:post_id AND user_id=:id",[
+            'post_id' => $post_id,
+        'id' => $user_id,
+    ]);
+    $db->query("UPDATE notifications SET read_status=2 WHERE post_id=:post_id AND to_user_id=:id",[
+            'post_id' => $post_id,
+        'id' => $user_id,
+    ]);
+    $db->query("DELETE FROM posts WHERE id=:post_id",[
+      'post_id' => $post_id,
+    ]);
+    return true;
 }
 
 function deleteMsg($msg_id){
     global $db;
-    $user_id=$_SESSION['userdata']['id'];
-    $query = "DELETE FROM messages WHERE id=$msg_id";
-    return mysqli_query($db,$query);
+    return $db->query("DELETE FROM messages WHERE id=:id",[
+       'id' => $msg_id,
+    ]);
 }
 
-function hidechat($chat_id){
+function hideChat($chat_id){
     global $db;
     $user = $_SESSION['userdata']['id'];
-    $query = "delete from messages WHERE (to_user_id=$chat_id && from_user_id=$user) || (to_user_id=$user && from_user_id=$chat_id)";
-    return mysqli_query($db,$query);
+    return $db->query("delete from messages WHERE (to_user_id=:id AND from_user_id=:user) OR (to_user_id=:user AND from_user_id=:id)",[
+            'id' => $chat_id,
+            'user' => $user,
+    ]);
 }
 // for deleting comment
 function deleteComment($comment_id){
@@ -1110,18 +930,17 @@ function filterPosts(){
 
 //for creating new user
 function createUser($data){
-    global $db;
-    $allowed_tags = array('<br>','<b>','<i>','<strong>','<small>','<strong>','<caption>','<em>','<h1>','<h2>','<h3>','<h4>','<h5>','<h6>','<li>','<ul>','<ol>','<mark>','<p>','<pre>');
-    $first_name = mysqli_real_escape_string($db,strip_tags($data['first_name'],$allowed_tags));
-    $last_name = mysqli_real_escape_string($db,strip_tags($data['last_name'],$allowed_tags));
+    global $db,$protection;
+    $first_name = $protection->stripTags($data['first_name']);
+    $last_name = $protection->stripTags($data['last_name']);
     $gender = $data['gender'];
-    $email = mysqli_real_escape_string($db,strip_tags($data['username_email']));
-    $username = mysqli_real_escape_string($db,strip_tags($data['username']));
-    $username = stripslashes($username);
-    $phone = mysqli_real_escape_string($db,strip_tags($data['phone']));
-    $phone =  filterInputValue($data['phone']);
-    $password = mysqli_real_escape_string($db,strip_tags($data['password']));
-    $password = md5($password);
+    $email = $protection->stripTags($data['username_email']);
+    $username = $protection->stripTags($data['username']);
+    $username = $protection->stripSlashes($username);
+    $phone =$protection->stripTags($data['phone']);
+    $phone =  $protection->filterInput($data['phone']);
+    $password = $protection->stripTags($data['password']);
+    $password = $protection->passwordHash($password);
     $ac_status = $data['message_type'];
     if( $ac_status == 1){
         $ac = 0;
@@ -1138,18 +957,33 @@ function createUser($data){
     }
 
     $query = "INSERT INTO users(first_name,last_name,gender,email,username,phone,password,profile_pic,bg_pic,ac_status,counter) ";
-    $query.="VALUES ('$first_name','$last_name',$gender,'$email','$username','$phone','$password','$profile_pic','$bg','$ac','$counter')";
-    return mysqli_query($db,$query);
+    $query.="VALUES (:first_name,:last_name,:gender,:email,:username,:phone,:password,:profile_pic,:bg,:ac,:counter)";
+    $db->query($query,[
+            'first_name' => $first_name,
+        'last_name' => $last_name,
+        'gender' => $gender,
+        'email' => $email,
+        'username' => $username,
+        'phone' => $phone,
+        'password' => $password,
+        'profile_pic' => $profile_pic,
+        'bg' => $bg,
+        'ac' => $ac,
+        'counter' => $counter,
+    ]);
+    return true;
 }
 
 function createLoginDevice(){
     global $db;
-    $userAgent = $_SERVER['HTTP_USER_AGENT'];
-    $user_id = $_SESSION['userdata']['id'];
-    $ip_address = getIpAddr();
     $query = "INSERT INTO logged_devices(user_id,logged_device,ip_address) ";
-    $query.="VALUES ('$user_id','$userAgent','$ip_address')";
-    return mysqli_query($db,$query);
+    $query.="VALUES (:user_id,:agent,:ip)";
+    $db->query($query,[
+       'user_id' => $_SESSION['userdata']['id'],
+      'agent' => $_SERVER['HTTP_USER_AGENT'],
+      'ip' => getIpAddr(),
+    ]);
+    return true;
 }
 
 function createMarket($name,$location,$text,$pic){
@@ -1435,8 +1269,6 @@ function validatePostReel($image_data){
         $response['field']='post_reel';
     }
 
-
-
     if($image_data['name']){
         $image = basename($image_data['name']);
         $type = strtolower(pathinfo($image,PATHINFO_EXTENSION));
@@ -1574,42 +1406,34 @@ function createStories($image){
 function deleteOldStories(){
     global $db;
     $time_limit = strtotime('-24 hours');
-
-    // Delete the old stories
-    $sql = "DELETE FROM stories WHERE created_at < FROM_UNIXTIME('$time_limit')";
-    return mysqli_query($db,$sql);
+    return $db->query("DELETE FROM stories WHERE created_at < FROM_UNIXTIME(:limit)",[
+            'limit' => $time_limit,
+    ]);
 }
 
 function getStory(){
     global $db;
-    $query = "SELECT users.id as uid,stories.id,stories.user_id,stories.story_img,stories.created_at,users.first_name,users.last_name,users.username,users.profile_pic,users.verify,users.bio FROM stories JOIN users ON users.id=stories.user_id ORDER BY read_status = 0 desc";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
-
+    return $query = $db->query("SELECT users.id as uid,stories.id,stories.user_id,stories.story_img,stories.created_at,users.first_name,users.last_name,users.username,users.profile_pic,users.verify,users.bio FROM stories JOIN users ON users.id=stories.user_id ORDER BY read_status = 0 desc",[])->all();
 }
 function getLikesForProfile($post_id){
     global $db;
-    $query = "SELECT users.id as uid,likes.id,likes.user_id,users.first_name,users.profile_pic FROM likes JOIN users ON users.id=likes.user_id where post_id=$post_id ORDER BY ID desc";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
-
+    return $query = $db->query("SELECT users.id as uid,likes.id,likes.user_id,users.first_name,users.profile_pic FROM likes JOIN users ON users.id=likes.user_id where post_id=$post_id ORDER BY ID desc",[])->all();
 }
 
 //for showing recent searches
-function getRecentSearches(){
+function getRecentSearches()
+{
     global $db;
     $user_id = $_SESSION['userdata']['id'];
-    $query = "SELECT DISTINCT users.id as uid,recent_searches.id,recent_searches.user_id,users.username,recent_searches.search_id,users.first_name,users.last_name,recent_searches.created_at,users.profile_pic FROM recent_searches JOIN users ON users.id=recent_searches.search_id where recent_searches.user_id=$user_id ORDER BY ID desc ";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_all($run,true);
-
+    return $query = $db->query("SELECT DISTINCT users.id as uid,recent_searches.id,recent_searches.user_id,users.username,recent_searches.search_id,users.first_name,users.last_name,recent_searches.created_at,users.profile_pic FROM recent_searches JOIN users ON users.id=recent_searches.search_id where recent_searches.user_id=:id ORDER BY ID desc",[
+            'id' => $user_id,
+    ])->all();
 }
-
 function deleteRecent($search){
     global $db;
     $user = $_SESSION['userdata']['id'];
-    $query = "DELETE FROM recent_searches WHERE search_id = $search AND user_id = $user";
-    return mysqli_query($db,$query);
+    $db->query("DELETE FROM recent_searches WHERE search_id = $search AND user_id = $user");
+
 }
 
 
@@ -1635,15 +1459,15 @@ function setStoryAsRead($user_id){
 
 function getUnreadstories($story_id){
     global $db;
-    $query="SELECT count(*) as row FROM stories WHERE read_status=0 && id=$story_id ORDER BY id DESC";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+    $query=$db->query("SELECT count(*) as row FROM stories WHERE read_status=0 && id=:id ORDER BY id DESC",[
+            'id' => $story_id,
+    ])->find();
+    return $query['row'];
 }
 
 function updateLastLogin($user_id) {
     global $db;
-    $db->query("UPDATE users SET last_login = :last_login WHERE id = :id",[
-        'last_login' => NOW(),
+    $db->query("UPDATE users SET last_login = NOW() WHERE id = :id",[
         'id' => $user_id,
     ]);
     header('Content-Type: application/json');
@@ -1656,5 +1480,13 @@ function updateCounter($user_id){
         'id' => $user_id,
         'counter' => 0,
     ]);
-}
 
+    function getDevice($user_id,$agent,$ip_address){
+        global $db;
+        return $query = $db->query("SELECT * FROM logged_devices WHERE logged_device = :agent AND ip_address = :ip AND user_id=:user_id",[
+                'agent' => $agent,
+            'ip' => $ip_address,
+            'user_id' => $user_id,
+        ])->find();
+    }
+}

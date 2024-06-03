@@ -1,5 +1,5 @@
 <?php
-
+session_start();
 class Data{
     public $connection;
     public $statement;

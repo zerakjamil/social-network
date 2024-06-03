@@ -1,11 +1,10 @@
 <?php
-ob_start();
 require_once 'functions.php';
 require_once 'send_code.php';
 require_once 'sencode_phone.php';
+require 'Validate.php';
 
-
-
+$validate = new Validate();
 
 if(isset($_GET['block'])){
     $user_id = $_GET['block'];
@@ -15,8 +14,6 @@ if(isset($_GET['block'])){
       }else{
           echo "هەڵەیەک روویدا لە کاتی جێبەجێ کردنی داواکاریەکەت، تکایە دووبارە هەوڵ بدەوە";
       }
-  
-    
   }
 
  
@@ -39,8 +36,6 @@ if(isset($_GET['block'])){
       }else{
           echo "هەڵەیەک روویدا لە کاتی جێبەجێ کردنی داواکاریەکەت، تکایە دووبارە هەوڵ بدەوە";
       }
-  
-    
   }
 
   
@@ -75,7 +70,7 @@ if(isset($_GET['contact'])){
     $name = $_POST['contact_name'];
     $email = $_POST['contact_email'];
     $msg = $_POST['contact_message'];
-    $response = validateContactForm($name,$email,$msg);
+    $response = $validate->validateContactForm($name,$email,$msg);
     if($response['status']){
         if(contactUs($name,$email,$msg)){
         header("location:{$_SERVER['HTTP_REFERER']}&successs");
@@ -110,10 +105,10 @@ if(isset($_COOKIE['user_id'])) {
 
 //for managaing signup
 if(isset($_GET['signup'])){
-$response=validateSignupForm($_POST);
+$response= $validate->validateSignupForm($_POST);
 if($response['status']){
     createUser($_POST);
-    $responsee=validateLoginFormA($_POST);
+    $responsee=$validate->validateLoginFormA($_POST);
     if($responsee['status']){
         $_SESSION['Auth'] = true;
         $_SESSION['userdata'] = $responsee['user'];
@@ -141,7 +136,7 @@ if($response['status']){
 }
   
     if(isset($_GET['marketcreate'])){
-        $response = validateMarketForm($_POST,$_FILES['market_pic']);
+        $response = $validate->validateMarketForm($_POST,$_FILES['market_pic']);
         if($response['status']){
             if(createMarket($_POST,$_FILES['market_pic'])){
                 header("location:../../?market");
@@ -156,7 +151,7 @@ if($response['status']){
     }
 //for managing login
 if(isset($_GET['login'])){
-    $response=validateLoginForm($_POST);
+    $response=$validate->validateLoginForm($_POST);
     $time=time()-30;
     $username = $_POST['username_email'];
      $ip_address=getIpAddr();
@@ -170,7 +165,6 @@ if(isset($_GET['login'])){
      }
     updateLastLogin($user_id);
     deleteFromAttempts($ip_address,$username);
-    
     if($response['user']['twoStep']==1){
         if (empty(getDevice($_SESSION['userdata']['id'],$_SERVER['HTTP_USER_AGENT'],$ip_address))) {
                 createNotification(9999,$_SESSION['userdata']['id'],'کەسێک لە ڕێگەی ئامێرێکی نەناسراو هەوڵی هاتنە ژوورەوەی ئەکاونتەکەی تۆ ئەدا، ئایە ئەو کەسە تۆی؟ گەر تۆ نی پێشنیاری گۆڕینی تێپەڕەوشە ئەکەین بە زووترین کات');
@@ -208,28 +202,6 @@ if(isset($_GET['login'])){
     }
         
     }
-
-
-if (isset($_COOKIE['remember_me'])) {
-    global $pdo;
-    $sql = "SELECT user_id FROM remember_me_tokens WHERE token = :token AND expires > NOW()";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([':token' => $_COOKIE['remember_me']]);
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($result) {
-        // User found, log them in
-        $_SESSION['user_id'] = $result['user_id'];
-
-        // Update the timestamp in the database
-        $sql = "UPDATE remember_me_tokens SET expires = DATE_ADD(NOW(), INTERVAL 1 MONTH) WHERE token = :token";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([':token' => $_COOKIE['remember_me']]);
-    } else {
-        // Invalid or expired token, delete the cookie
-        setcookie('remember_me', '', time() - 3600);
-    }
-}
 
     if(isset($_GET['resend_code'])){
        
@@ -311,7 +283,6 @@ if(isset($_GET['forgotpassword'])){
            $_SESSION['forgot_code']=$code = rand(111111,999999);
             sendCode($_POST['email'],'NETlink',$code);
             header('location:../../?forgotpassword&resended');
-            ob_end_flush();
     }
 }
 

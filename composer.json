@@ -1,7 +1,9 @@
 {
     "require": {
         "twilio/sdk": "^7.3",
-        "mobiledetect/mobiledetectlib": "^3.74"
+        "mobiledetect/mobiledetectlib": "^3.74",
+      "ext-pdo": "*",
+      "ext-mysqli": "*"
     }
     
 }

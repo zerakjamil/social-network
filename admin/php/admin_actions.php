@@ -6,6 +6,7 @@ if(isset($_GET['login'])){
     if(checkAdminUser($_POST)['status']){
         $_SESSION['admin_auth']=checkAdminUser($_POST)['user_id'];
      header('Location:../');
+     exit();
     }else{
 $_SESSION['error']=[
     "field"=>"useraccess",

@@ -25,7 +25,7 @@
 foreach($recent as $fuser){
 
     if(  in_array($fuser['search_id'], $displayed_values)) {
-        $pdo = new PDO('mysql:host=localhost;dbname=userregistration', 'root', '');
+        $pdo = new PDO('mysql:host=localhost;dbname=netlink', 'root', '');
         $stmt = $pdo->prepare("DELETE FROM recent_searches WHERE search_id = ? AND created_at < ? AND user_id = ?");
         $stmt->execute([$fuser['search_id'], $fuser['created_at'], $fuser['user_id']]);
         continue;

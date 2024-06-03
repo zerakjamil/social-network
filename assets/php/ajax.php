@@ -293,7 +293,7 @@ if(isset($_GET['deletecomment'])){
 
     if(isset($_GET['hidemessages'])){
         $chat_id = $_POST['chat'];
-        if(hidechat($chat_id)){
+        if(hideChat($chat_id)){
             $response['status']=true;
         }else{
             $response['status']=false;
