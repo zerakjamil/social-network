@@ -2,10 +2,12 @@
 require 'Data.php';
 require 'Protection.php';
 require 'Validate.php';
+require 'Time.php';
 $config = require 'config.php';
 $db = new Data($config['database']);
 $protection = new Protection();
 $validate = new Validate();
+$time = new Time();
 //function for showing pages
 function showPage($page,$data=""){
     include("assets/pages/$page.php");
@@ -56,6 +58,16 @@ VALUES(:user_id, :reporter_id, :post_id, :report_msg, :reason)",[
         'reason' => $reason,
     ]);
 }
+
+function getDevice($user_id,$agent,$ip_address){
+    global $db;
+    return $query = $db->query("SELECT * FROM logged_devices WHERE logged_device = :agent AND ip_address = :ip AND user_id=:user_id",[
+        'agent' => $agent,
+        'ip' => $ip_address,
+        'user_id' => $user_id,
+    ])->find();
+}
+
 //for seeing a chat
 function seenChat($chat_id,$response,$current_id){
     global $db;
@@ -104,53 +116,41 @@ function getActiveChatUserIds(){
         if($ch['to_user_id']!=$current_user_id && !in_array($ch['to_user_id'],$ids)){
             $ids[]=$ch['to_user_id'];
         }
-
     }
-
     return $ids;
 }
 
 function getMessages($user_id){
     global $db;
-    return $query = $db->query("SELECT * FROM messages WHERE (to_user_id = :to && from_user_id = :from) || (from_user_id = :to && to_user_id = :from) ORDER BY id DESC",[
+    return $query = $db->query("SELECT * FROM messages WHERE (to_user_id = :to AND from_user_id = :from) OR (from_user_id = :to AND to_user_id = :from) ORDER BY id DESC",[
         'to' => $_SESSION['userdata']['id'],
         'from' => $user_id,
     ])->all();
 }
 
 function sendMessage($user_id,$msg){
-    global $db;
-    $current_user_id = $_SESSION['userdata']['id'];
-    $allowed_tags = array('<br>','<b>','<i>','<strong>','<small>','<caption>','<em>','<h1>','<h2>','<h3>','<h4>','<h5>','<h6>','<li>','<ul>','<ol>','<mark>','<p>','<pre>');
-    $msg = mysqli_real_escape_string($db,$msg);
-    $msg = strip_tags($msg,$allowed_tags);
-    $query = "INSERT INTO messages (from_user_id,to_user_id,msg) VALUES($current_user_id,$user_id,'$msg')";
-    return mysqli_query($db,$query);
+    global $db,$protection;
+    $protection->stripTags($msg);
+    return $db->query("INSERT INTO messages (from_user_id,to_user_id,msg) VALUES(:from,:to,:message)",[
+            'from' => $_SESSION['userdata']['id'],
+            'to' => $user_id,
+            'message' => $msg,
+        ]);
 }
 
 function newMsgCount(){
     global $db;
-    $current_user_id = $_SESSION['userdata']['id'];
-    $query="SELECT COUNT(*) as row FROM messages WHERE to_user_id=$current_user_id && read_status=0";
-    $run=mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+    return $db->query("SELECT COUNT(*) as row FROM messages WHERE to_user_id=:to && read_status=0",[
+            'to' => $_SESSION['userdata']['id'],
+    ])->find();
 }
 
 function updateMessageReadStatus($user_id){
-    $cu_user_id = $_SESSION['userdata']['id'];
     global $db;
-    $query="UPDATE messages SET read_status=1 WHERE to_user_id=$cu_user_id && from_user_id=$user_id";
-    return mysqli_query($db,$query);
-}
-
-function gettime($date){
-    return date('H:i - F jS, Y ', strtotime($date));
-}
-function gettimeA($date){
-    return date('H:i - F jS, ', strtotime($date));
-}
-function gettimeB($date){
-    return date('F jS, Y', strtotime($date));
+    return $db->query("UPDATE messages SET read_status=1 WHERE to_user_id=:to AND from_user_id=:from",[
+            'to' => $_SESSION['userdata']['id'],
+            'from' => $user_id,
+    ]);
 }
 function gettimeC($date){
     return date('H:i', strtotime($date));
@@ -1168,7 +1168,7 @@ function updateProfile($data,$imagedata,$bgimage){
     }
 
 return $db->query("UPDATE users SET first_name = :first, last_name=:last,username=:username,bio=:bio, work =:work,city=:city,work_place=:work_place:,
-                 DoB=:DoB,islocked =:toggle,password=:password , :profile_pic,  :bg_pic   WHERE id=:user",[
+                 DoB=:DoB,islocked =:toggle,password=:password  :profile_pic  :bg_pic   WHERE id=:user",[
         'first' => $data['first_name'],
         'last' => $data['last_name'],
         'username' => $data['username'],
@@ -1454,12 +1454,5 @@ function updateCounter($user_id){
         'counter' => 0,
     ]);
 
-    function getDevice($user_id,$agent,$ip_address){
-        global $db;
-        return $query = $db->query("SELECT * FROM logged_devices WHERE logged_device = :agent AND ip_address = :ip AND user_id=:user_id",[
-                'agent' => $agent,
-            'ip' => $ip_address,
-            'user_id' => $user_id,
-        ])->find();
-    }
+
 }

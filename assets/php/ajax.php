@@ -1,4 +1,5 @@
 <?php
+global $time;
 require_once 'functions.php';
 
 if(isset($_GET['sendmessage'])){
@@ -33,7 +34,7 @@ foreach($chats as $chat){
                             <div class="d-flex flex-column justify-content-center" >
                                 <a href="#" class="text-decoration-none text-dark"><h6 style="margin: 0px;font-size: small;">'.$ch_user['first_name'].' '.$ch_user['last_name'].'</h6></a>
                                 <p style="margin:0px;font-size:small" class="">'.$chat['messages'][0]['msg'].'</p>
-                                <time style="font-size:small" class="timeago text-small" datetime="'.$chat['messages'][0]['created_at'].'">'.gettime($chat['messages'][0]['created_at']).'</time>
+                                <time style="font-size:small" class="timeago text-small" datetime="'.$chat['messages'][0]['created_at'].'">'.$time->getTime($chat['messages'][0]['created_at']).'</time>
                             </div>
                         </div>
                         <div class="d-flex align-items-center">
@@ -82,7 +83,7 @@ if ($isSeen['seenBy'] = 0) {
 }
             if ($cm['msg'] != '') {
                 $chatmsg .= ' <div class="py-2 px-3 border rounded shadow-sm col-8 d-inline-block ' . $cl1 . '">' . $cm['msg'] . '' . $cl3 . '<br>
-    <span style="font-size:small" class="' . $cl2 . '">' . gettime($cm['created_at']) . '</span>' . $cl4 . '
+    <span style="font-size:small" class="' . $cl2 . '">' . $time->getTime($cm['created_at']) . '</span>' . $cl4 . '
 </div>';
             }elseif($cm['msg_voice'] != ''){
                 $chatmsg .= ' <audio controls>
@@ -618,7 +619,7 @@ if(isset($_GET['getmessenger'])){
           <p class="name">'.$ch_user['first_name'].' '.$ch_user['last_name'].'</p>
           <p class="message">'.$chat['messages'][0]['msg'].'</p>
         </div>
-        <div class="timer"><time style="font-size:small" class="timeago text-small" datetime="'.$chat['messages'][0]['created_at'].'">'.gettimeC($chat['messages'][0]['created_at']).'</time></div>
+        <div class="timer"><time style="font-size:small" class="timeago text-small" datetime="'.$chat['messages'][0]['created_at'].'">'.$time->getTimeOnlyHours($chat['messages'][0]['created_at']).'</time></div>
       </div>
       </div>';
         
@@ -667,7 +668,7 @@ $cl6 = 'align-self-end';
         $cl6 = '';
     }
     
-        $chatmsg.='<p class="time text-dark '.$cl6.'">'.gettime($cm['created_at']).'</p>
+        $chatmsg.='<p class="time text-dark '.$cl6.'">'.$time->getTime($cm['created_at']).'</p>
         <div class="message">
        '.$cl2.'
         <div class="'.$cl1.'" >

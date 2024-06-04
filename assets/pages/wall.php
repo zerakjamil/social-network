@@ -1,5 +1,5 @@
 <?php
- global $user;
+ global $user, $time;
  global $posts;
  $profile_post = getPostById($user['id']);
  $profile['followers']=getFollowers($user['id']);
@@ -65,7 +65,7 @@ border: 3px solid white;">
                         <div>&nbsp;&nbsp;</div>
                         <div class="d-flex flex-column justify-content-center">
                             <a href='?u=<?=$story['username']?>' class="text-decoration-none text-white"><h6 style="margin: 0px;font-size:16px;"><?=$story['first_name']?> <?=$story['last_name']?></h6></a>
-                            <p class="text-white fw-normal text-small"><?=gettimeA($story['created_at'])?></p>
+                            <p class="text-white fw-normal text-small"><?=$time->getTimeWithoutYear($story['created_at'])?></p>
                         </div>
                     </div>
                     

@@ -2,9 +2,6 @@
 require_once 'functions.php';
 require_once 'send_code.php';
 require_once 'sencode_phone.php';
-require 'Validate.php';
-
-$validate = new Validate();
 
 if(isset($_GET['block'])){
     $user_id = $_GET['block'];

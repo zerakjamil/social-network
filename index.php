@@ -22,7 +22,7 @@ if(isset($_SESSION['Auth'])){
     $reels = getReels();
     $reports =  reportPosts();
     $ip_address = getIpAddr();
-    //$device = getDevice($_SESSION['userdata']['id'],$_SERVER['HTTP_USER_AGENT'],$ip_address);
+    $device = getDevice($_SESSION['userdata']['id'],$_SERVER['HTTP_USER_AGENT'],$ip_address);
 }
 
 $pagecount = count($_GET);

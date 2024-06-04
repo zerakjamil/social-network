@@ -1,9 +1,10 @@
-
+global$time;
 <?php
 global $profile;
 global $profile_post;
 global $reels_post;
 global $user;
+global $time;
 //echo '<pre>'; print_r($profile); echo '</pre>';
 ?>
 
@@ -113,7 +114,7 @@ elseif($profile['islocked'] != 1 ){
             <?php } ?>
             
             <p>
-            <img src="images/three-stars-icon.svg" style="height:27px; width:27px;" alt="">  بەشداربوو لەوەتەی : <?=gettimeB($profile['created_at']);?>
+            <img src="images/three-stars-icon.svg" style="height:27px; width:27px;" alt="">  بەشداربوو لەوەتەی : <?=$time->getTimeWithoutHours($profile['created_at']);?>
             </p>
           </div>
         </div>
