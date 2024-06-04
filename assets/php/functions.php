@@ -152,12 +152,9 @@ function updateMessageReadStatus($user_id){
             'from' => $user_id,
     ]);
 }
-function gettimeC($date){
-    return date('H:i', strtotime($date));
-}
 function getAllMessages(){
     $active_chat_ids = getActiveChatUserIds();
-    $conversation=array();
+    $conversation=[];
     foreach($active_chat_ids as $index=>$id){
         $conversation[$index]['user_id'] = $id;
         $conversation[$index]['messages'] = getMessages($id);
@@ -169,11 +166,11 @@ function getAllMessages(){
 function followUser($user_id){
     global $db;
     $cu = getUser($_SESSION['userdata']['id']);
-    $current_user=$_SESSION['userdata']['id'];
-    $query="INSERT INTO follow_list(follower_id,user_id) VALUES($current_user,$user_id)";
-    createNotification($cu['id'],$user_id,"شوێن تۆکەوت");
-    return mysqli_query($db,$query);
-
+    createNotification($cu['id'],$user_id,"شوێنت کەوت");
+    return $db->query("INSERT INTO follow_list(follower_id,user_id) VALUES(:follower,:followed)",[
+            'follower' => $current_user,
+            'followed' => $user_id,
+    ]);
 }
 //to accept a request
 function acceptUser($user_id){
@@ -230,10 +227,11 @@ function checkLikeStatus($post_id){
 
 function checkLikeStatusC($comment_id){
     global $db;
-    return $db->query("SELECT count(*) as `row` FROM comment_likes WHERE user_id=:id AND comment_id=:comment",[
+    return $query = $db->query("SELECT count(*) as `row` FROM comment_likes WHERE user_id=:id AND comment_id=:comment",[
         'id' => $_SESSION['userdata']['id'],
         'comment' => $comment_id,
     ])->find();
+    return $query['row'];
 }
 //function for like the post
 function like($post_id){
@@ -251,71 +249,59 @@ function like($post_id){
 //liking comments
 function likeC($comment_id){
     global $db;
-    $current_user=$_SESSION['userdata']['id'];
-    $query="INSERT INTO comment_likes(comment_id,user_id) VALUES($comment_id,$current_user)";
+    $db->query("INSERT INTO comment_likes(comment_id,user_id) VALUES(:comment,:user)",[
+            'comment' => $comment_id,
+            'user' => $_SESSION['userdata']['id'],
+    ]);
     $poster_id = getPosterIdC($comment_id);
-
-    if($poster_id!=$current_user){
+    if($poster_id!=$_SESSION['userdata']['id']){
         createNotification($current_user,$poster_id,"سەرنجەکەی تۆی بەدڵە",$comment_id);
     }
-    return mysqli_query($db,$query);
-
+    return json_encode(true);
 }
-
-
 //function for creating comments
 function addComment($post_id,$comment){
-    global $db;
-    $allowed_tags = array('<br>','<b>','<i>','<strong>','<small>','<caption>','<em>','<h1>','<h2>','<h3>','<h4>','<h5>','<h6>','<li>','<ul>','<ol>','<mark>','<p>','<pre>');
-    $comment = mysqli_real_escape_string($db,$comment);
-    $comment = strip_tags($comment,$allowed_tags);
-    $current_user=$_SESSION['userdata']['id'];
-    $query="INSERT INTO comments(user_id,post_id,comment) VALUES($current_user,$post_id,'$comment')";
+    global $db,$protection;
+    $comment = $protection->stripTags($comment);
+    $db->query("INSERT INTO comments(user_id,post_id,comment) VALUES(:user,:post,:comment)",[
+            'user' => $_SESSION['userdata']['id'],
+            'post' => $post_id,
+            'comment' => $comment,
+    ]);
     $poster_id = getPosterId($post_id);
-
     if($poster_id!=$current_user){
         createNotification($current_user,$poster_id,"لێدوانی لەسەر پۆستەکەی تۆ دا",$post_id);
     }
-
-
-    return mysqli_query($db,$query);
+    return json_encode(true);
 
 }
-
 function addReply($post_id,$comment_id,$reply){
-    global $db;
-    $allowed_tags = array('<br>','<b>','<i>','<strong>','<small>','<caption>','<em>','<h1>','<h2>','<h3>','<h4>','<h5>','<h6>','<li>','<ul>','<ol>','<mark>','<p>','<pre>');
-    $reply = mysqli_real_escape_string($db,$reply);
-    $reply = strip_tags($reply,$allowed_tags);
-    $current_user=$_SESSION['userdata']['id'];
-    $query="INSERT INTO replies(user_id,comment_id,post_id,reply) VALUES('$current_user','$comment_id','$post_id','$reply')";
+    global $db,$protection;
+    $reply = $protection->stripTags($reply);
+    $db->query("INSERT INTO replies(user_id,comment_id,post_id,reply) VALUES(:user,:comment,:post,:reply)",[
+            'user' => $_SESSION['userdata']['id'],
+            'comment' => $comment_id,
+            'post' => $post_id,
+            'reply' => $reply,
+    ]);
     $poster_id = getPosterId($post_id);
-
     if($poster_id!=$current_user){
         createNotification($current_user,$poster_id,"لێدوانی لەسەر پۆستەکەی تۆ دا",$post_id);
     }
-
-
-    return mysqli_query($db,$query);
-
+    return json_encode(true);
 }
 //function for creating comments
 function createNotification($from_user_id,$to_user_id,$msg,$post_id=0,$comment_id=0){
     global $db;
-    $query="INSERT INTO notifications(from_user_id,to_user_id,message,post_id,comment_id) VALUES($from_user_id,$to_user_id,'$msg',$post_id,$comment_id)";
-    mysqli_query($db,$query);
+    return $db->query("INSERT INTO notifications(from_user_id,to_user_id,message,post_id,comment_id) 
+VALUES($from_user_id,$to_user_id,'$msg',$post_id,$comment_id)",[
+        'from' => $from_user_id,
+        'to' => $to_user_id,
+        'message' => $msg,
+        'post' => $post_id,
+        'comment' => $comment_id,
+    ]);
 }
-
-//to fix phone number
-function filterInputValue($input) {
-    if (preg_match('/^0\d/', $input)) {
-        return substr($input, 1);
-    }
-    return $input;
-}
-
-
-
 //function for getting likes count
 function getComments($post_id){
     global $db;
@@ -323,7 +309,6 @@ function getComments($post_id){
             'id' => $post_id,
     ])->all();
 }
-
 function getReplies($comment_id){
     global $db;
 return $db->query("SELECT * FROM replies WHERE comment_id=:id ORDER BY id DESC",[
@@ -348,20 +333,12 @@ function getUnreadNotificationsCount(){
    ])->find();
    return $query['row'];
 }
-
-function show_time($time){
-    return '<time style="font-size:small" class="timeago text-muted text-small" datetime="'.$time.'"></time>';
-}
-
 function setNotificationStatusAsRead(){
     global $db;
     return $db->query("UPDATE notifications SET read_status=1 WHERE to_user_id=:id",[
             'id' => $_SESSION['userdata']['id'],
     ]);
 }
-
-
-
 //function for getting likes count
 function getLikes($post_id){
     global $db;
@@ -381,43 +358,41 @@ function getLikesC($comment_id){
 //function for unlike the post
 function unlike($post_id){
     global $db;
-    $current_user=$_SESSION['userdata']['id'];
-    $query="DELETE FROM likes WHERE user_id=$current_user && post_id=$post_id";
-
+    $db->query("DELETE FROM likes WHERE user_id=:user AND post_id=:post",[
+            'user' => $_SESSION['userdata']['id'],
+            'post' => $post_id,
+    ]);
     $poster_id = getPosterId($post_id);
     if($poster_id!=$current_user){
         createNotification($current_user,$poster_id,"!بەدڵبوونی سەر پۆستەکەی تۆی لادا",$post_id);
     }
-
-    return mysqli_query($db,$query);
+    return json_encode(true);
 }
 
 function unlikeC($comment_id){
     global $db;
-    $current_user=$_SESSION['userdata']['id'];
-    $query="DELETE FROM comment_likes WHERE user_id=$current_user && comment_id=$comment_id";
-    return mysqli_query($db,$query);
+    return $db->query("DELETE FROM comment_likes WHERE user_id=:user AND comment_id=:comment",[
+            'user' => $_SESSION['userdata']['id'],
+            'comment' => $comment_id,
+    ]);
 }
-function unfollowUser($user_id){
+function unfollowUser($unfollow){
     global $db;
-    $current_user=$_SESSION['userdata']['id'];
-    $query="DELETE FROM follow_list WHERE follower_id=$current_user && user_id=$user_id";
-
+    $user=$_SESSION['userdata']['id'];
     createNotification($current_user,$user_id,"تۆی لە شوێنکەوتنەکانی لادا");
-    return mysqli_query($db,$query);
-
-
+    return $db->query("DELETE FROM follow_list WHERE follower_id=:user AND user_id=:unfollow",[
+            'user' => $user,
+            'unfollow' => $unfollow,
+    ]);
 }
 
 function CancelFollow($user_id){
     global $db;
-    $current_user=$_SESSION['userdata']['id'];
-    $query="DELETE FROM follow_list WHERE follower_id=$current_user && user_id=$user_id && status = 'p'";
-
-    return mysqli_query($db,$query);
+   return $db->query("DELETE FROM follow_list WHERE follower_id=:follower AND user_id=:user AND status = 'p'",[
+            'follower' => $_SESSION['userdata']['id'],
+            'user' => $user_id,
+    ]);
 }
-
-
 //function for show errors
 function showError($field){
     if(isset($_SESSION['error'])){
@@ -479,7 +454,7 @@ function isUsernameRegistered($username){
 function isUsernameRegisteredByOther($username){
     global $db;
     $user_id=$_SESSION['userdata']['id'];
-    $query= $db->query("SELECT count(*) as `row` FROM users WHERE username=:username && id!= :user_id",[
+    $query= $db->query("SELECT count(*) as `row` FROM users WHERE username=:username AND id!= :user_id",[
             'username' => $username,
             'user_id' => $user_id,
     ])->find();
@@ -541,7 +516,7 @@ function checkUser($login_data){
 //for getting userdata by id
 function getUser($user_id){
     global $db;
-    return $query = $db->query("SELECT * FROM users WHERE id=:id",[
+    return $db->query("SELECT * FROM users WHERE id=:id",[
             'id' => $user_id,
     ])->find();
 }
@@ -675,35 +650,28 @@ function checkFollowStatusF($user_id){
 function checkStatus($user_id){
     global $db;
     $current_user = $_SESSION['userdata']['id'];
-    $query="SELECT count(*) as row FROM follow_list WHERE follower_id=$current_user && user_id=$user_id && status='p'";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+    return $db->query("SELECT count(*) as `row` FROM follow_list WHERE follower_id=:follower AND user_id=:user AND status='p'",[
+            'follower' => $current_user,
+            'user' => $user_id,
+    ])->find();
 }
 
 //for checking the user is followed by current user or not
 function checkBlockStatus($current_user,$user_id){
     global $db;
-
-    $query="SELECT count(*) as row FROM block_list WHERE (user_id=$current_user && blocked_user_id=$user_id)";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+   return $db->query("SELECT count(*) as `row` FROM block_list WHERE (user_id = :user AND blocked_user_id = :blocked)",[
+            'user' => $current_user,
+            'blocked' => $user_id,
+    ])->find();
 }
 
 function checkBSS($user_id){
     global $db;
-    $current_user = $_SESSION['userdata']['id'];
-    $query="SELECT count(*) as row FROM block_list WHERE blocked_user_id=$current_user && user_id=$user_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+    return $db->query("SELECT count(*) as row FROM block_list WHERE blocked_user_id=:blocked AND user_id=:user",[
+            'blocked' => $_SESSION['userdata']['id'],
+            'user' => $user_id,
+    ])->find();
 }
-
-function checkB($user_id){
-    global $db;
-    $query="SELECT count(*) as row FROM block_list WHERE user_id=$user_id";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
-}
-
 function checkBS($user_id){
     global $db;
 return $db->query("SELECT count(*) as `row` FROM block_list WHERE user_id=:user AND blocked_user_id=:blocked",[
@@ -714,12 +682,11 @@ return $db->query("SELECT count(*) as `row` FROM block_list WHERE user_id=:user 
 //
 function checkLCK($user_id){
     global $db;
-    $current_user = $_SESSION['userdata']['id'];
-    $query="SELECT count(*) as row FROM users WHERE (id=$user_id && id!=$current_user && islocked=1 )";
-    $run = mysqli_query($db,$query);
-    return mysqli_fetch_assoc($run)['row'];
+    return $db->query("SELECT count(*) as `row` FROM users WHERE (id = :id AND id != :user AND islocked=1 )",[
+            'id' => $user_id,
+            'user' => $_SESSION['userdata']['id'],
+    ])->find();
 }
-
 //for getting users for follow suggestions
 function getFollowSuggestions(){
     global $db;
@@ -847,19 +814,19 @@ function deletePost($post_id){
     global $db;
     $user_id=$_SESSION['userdata']['id'];
     $db->query("DELETE FROM likes WHERE post_id=:post_id AND user_id=:id",[
-            'post_id' => $post_id,
+        'post_id' => $post_id,
         'id' => $user_id,
     ]);
-    $db->query("DELETE FROM comments WHERE post_id=$:post_id AND user_id=:id",[
-            'post_id' => $post_id,
+    $db->query("DELETE FROM comments WHERE post_id=:post_id AND user_id=:id",[
+        'post_id' => $post_id,
         'id' => $user_id,
     ]);
     $db->query("UPDATE notifications SET read_status=2 WHERE post_id=:post_id AND to_user_id=:id",[
-            'post_id' => $post_id,
+        'post_id' => $post_id,
         'id' => $user_id,
     ]);
     $db->query("DELETE FROM posts WHERE id=:post_id",[
-      'post_id' => $post_id,
+        'post_id' => $post_id,
     ]);
     return true;
 }
@@ -1156,7 +1123,7 @@ function updateProfile($data,$imagedata,$bgimage){
         $image_name = time().basename($imagedata['name']);
         $image_dir="../images/profile/$image_name";
         move_uploaded_file($imagedata['tmp_name'],$image_dir);
-        $profile_pic=", profile_pic='$image_name'";
+        $profile_pic=$image_name;
     }
 
     $bg_pic="";
@@ -1164,11 +1131,11 @@ function updateProfile($data,$imagedata,$bgimage){
         $bg_name = time().basename($bgimage['name']);
         $bg_dir="../images/bg/$bg_name";
         move_uploaded_file($bgimage['tmp_name'],$bg_dir);
-        $bg_pic=", bg_pic='$bg_name'";
+        $bg_pic=$bg_name;
     }
 
-return $db->query("UPDATE users SET first_name = :first, last_name=:last,username=:username,bio=:bio, work =:work,city=:city,work_place=:work_place:,
-                 DoB=:DoB,islocked =:toggle,password=:password  :profile_pic  :bg_pic   WHERE id=:user",[
+return $db->query("UPDATE users SET first_name = :first, last_name=:last,username=:username,bio=:bio, work=:work,city=:city,work_place=:work_place,
+                 DoB=:DoB,islocked=:toggle,password=:password,profile_pic=:profile_pic,bg_pic=:bg WHERE id=:user",[
         'first' => $data['first_name'],
         'last' => $data['last_name'],
         'username' => $data['username'],
@@ -1276,35 +1243,35 @@ function recentSearches($search,$searchId){
 
 // for creating text only post
 function createPostText($text){
-    global $db;
-    $allowed_tags = array('<br>','<b>','<i>','<strong>','<small>','<strong>','<caption>','<em>','<h1>','<h2>','<h3>','<h4>','<h5>','<h6>','<li>','<ul>','<ol>','<mark>','<p>','<pre>');
-    $post_text = mysqli_real_escape_string($db,$text['post_box']);
-    $post_text = strip_tags($text['post_box'],$allowed_tags);
-    $user_id = $_SESSION['userdata']['id'];
+    global $db,$protection;
+    $postText = $protection->stripTags($text['post_box']);
     $toggle = isset($_POST['clock']) && $_POST['clock'] == 1 ? 1 : 0;
-
-    $query = "INSERT INTO posts(user_id,post_text,coLock)";
-    $query.="VALUES ($user_id,'$post_text','$toggle')";
-    return mysqli_query($db,$query);
+    return $db->query ("INSERT INTO posts(user_id,post_text,post_img,post_vid,coLock) VALUES (:user,:text,:img,:vid,:toggle)",[
+            'user' => $_SESSION['userdata']['id'],
+            'text' => $postText,
+            'img' => '',
+            'vid' => '',
+            'toggle' => $toggle,
+    ]);
 }
 
 function createPost($text,$image){
-    global $db;
-    $allowed_tags = array('<br>','<b>','<i>','<strong>','<small>','<strong>','<caption>','<em>','<h1>','<h2>','<h3>','<h4>','<h5>','<h6>','<li>','<ul>','<ol>','<mark>','<p>','<pre>');
-    $post_text = mysqli_real_escape_string($db,$text['content']);
-    $post_text = strip_tags($text['content'],$allowed_tags);
-    $user_id = $_SESSION['userdata']['id'];
+    global $db,$protection;
+    $post_text = $protection->stripTags($text['content'],$allowed_tags);
     $toggle = isset($_POST['clock']) && $_POST['clock'] == 1 ? 1 : 0;
 
     $image_name = time().basename($image['name']);
     $image_dir="../images/posts/$image_name";
     move_uploaded_file($image['tmp_name'],$image_dir);
 
-    $query = "INSERT INTO posts(user_id,post_text,post_img,coLock)";
-    $query.="VALUES ($user_id,'$post_text','$image_name','$toggle')";
-    return mysqli_query($db,$query);
+   return $db->query("INSERT INTO posts(user_id,post_text,post_img,post_vid,coLock) VALUES (:user,:text,:img,:vid,:lock)",[
+       'user' => $_SESSION['userdata']['id'],
+       'text' => $post_text,
+       'img' => $image_name,
+       'vid' => '',
+       'lock' => $toggle,
+   ]);
 }
-
 //create reels
 function createPostReel($image){
     global $db;
@@ -1370,10 +1337,11 @@ function createStories($image){
     $image_dir="../images/stories/$image_name";
     move_uploaded_file($image['tmp_name'],$image_dir);
 
-
-    $query = "INSERT INTO stories(user_id,story_img)";
-    $query.="VALUES ($user_id,'$image_name')";
-    return mysqli_query($db,$query);
+    $db->query("INSERT INTO stories(user_id,story_img,read_status) VALUES (:user,:img,:read)",[
+            'user' => $user_id,
+            'img' => $image_name,
+        'read' => 0
+    ]);
 }
 
 function deleteOldStories(){

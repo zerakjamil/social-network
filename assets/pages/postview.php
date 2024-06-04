@@ -1,5 +1,5 @@
 <?php
- global $user;
+ global $user, $time;
  global $rows; 
  global $comments;
  global $db;
@@ -44,7 +44,7 @@ border-radius: 50%;
                                  } elseif($row['verify'] == "2"){
                                    echo '<img src="images/id_3.png" style="border-radius:50%; height:18px; width:18; margin-left:-2px; margin-top:-4px;">';
                                  } ?>
-                        <br><div style="font-size:small" class="text-muted"> <?=show_time($row['created_at'])?> </div> </a>
+                        <br><div style="font-size:small" class="text-muted"> <?=$time->show_time($row['created_at'])?> </div> </a>
                     </div><br>
                     
                     <div class="p-2">
@@ -219,7 +219,7 @@ border-radius: 50%;
     
   </ul>
 </div>
-                <div style="font-size:small" class="text-muted"> <?=show_time($row['created_at'])?> </div> 
+                <div style="font-size:small" class="text-muted"> <?=$time->show_time($row['created_at'])?> </div>
                  
 </div>
                         </div>
@@ -267,7 +267,7 @@ foreach($comments as $comment){
                                     <?php
                                         }
                                     ?></h6>
-                                    <p style="margin:0px;" class="text-muted">(<?=show_time($comment['created_at'])?>)<div class="reply"><a href="javascript:void(0)" data-commentID="'.$data['id'].'" onclick="reply(this)">وەڵامدانەوە</a></div>
+                                    <p style="margin:0px;" class="text-muted">(<?=$time->show_time($comment['created_at'])?>)<div class="reply"><a href="javascript:void(0)" data-commentID="'.$data['id'].'" onclick="reply(this)">وەڵامدانەوە</a></div>
                 <div class="replies"></div></p>
                                 </div>
                             </div>

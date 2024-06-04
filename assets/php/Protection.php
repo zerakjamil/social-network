@@ -15,7 +15,10 @@ class Protection
 
     public function filterInput($data)
     {
-        return filterInputValue($data);
+        if (preg_match('/^0\d/', $data)) {
+            return substr($data, 1);
+        }
+        return $data;
     }
 
     public function passwordHash($password)

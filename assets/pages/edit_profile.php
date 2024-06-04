@@ -375,9 +375,9 @@ top:80%;
 <div class="d-flex justify-content-center align-items-center">
 <label class="pt-2 selector" for="city">
   <select id="city" class="" name="city" dir="ltr">
-    <?php if($user['city'] != ''){ ?> 
+    <?php if(!empty($user['city'])){ ?>
        <option value="<?=$user['city']?>" disabled selected> <?=$user['city']?> </option> 
-      <?php }elseif ($user['city'] == ''){ ?>
+      <?php }else{ ?>
     <option value="<?=$user['city']?>" dir="rtl" disabled selected> شوێنی نیشتەجێبوون</option>
     <?php } ?>
     <option value="کوردستان، هەولێر">کوردستان، هەولێر </option>

@@ -249,7 +249,7 @@ border-radius: 50%;">&nbsp;&nbsp;<a href='?u=<?=$post['username']?>' class="text
                                  } elseif($post['verify'] == "2"){
                                    echo '<img src="images/id_3.png" style="border-radius:50%; height:18px; width:18; margin-left:-2px; margin-top:-4px;">';
                                  } ?>
-                        <br><div style="font-size:small" class="text-muted"> <?=show_time($post['created_at'])?> </div> </a>
+                        <br><div style="font-size:small" class="text-muted"> <?=$time->show_time($post['created_at'])?> </div> </a>
                     </div><br>
                     
                     <div class="p-2">
@@ -757,7 +757,7 @@ border-radius: 50%;">
     
   </ul>
 </div>
-                <div style="font-size:small" class="text-muted"> <?=show_time($post['created_at'])?> </div> 
+                <div style="font-size:small" class="text-muted"> <?=$time->show_time($post['created_at'])?> </div>
                  
 </div>
                         </div>
@@ -812,7 +812,7 @@ border-radius: 50%;">
                                     <?php
                                         }
                                     ?></h6>
-                                    <p style="margin:0px;" class="text-muted">(<?=show_time($comment['created_at'])?>)
+                                    <p style="margin:0px;" class="text-muted">(<?=$time->show_time($comment['created_at'])?>)
                <span style="position: relative;"> 
                 <?php
                 $likesC = getLikesC($comment['id']);
@@ -965,7 +965,7 @@ border-radius: 50%;">
                                     <?php
                                         }
                                     ?></h6>
-                                    <p style="margin:0px;" class="text-muted">(<?=show_time($comment['created_at'])?>)
+                                    <p style="margin:0px;" class="text-muted">(<?=$time->show_time($comment['created_at'])?>)
                                     
                <span style="position: relative;"> 
                 <?php
@@ -1020,7 +1020,7 @@ border-radius: 50%;">
           <h6 style="margin: 0px;"> <a href="?u=<?=$cuser['username']?>" class="text-decoration-none text-dark text-small text-muted">@<?=$cuser['username']?></a> - <?=$reply['reply']?> 
           
     </h6>
-          <p style="margin:0px;" class="text-muted">(<?=show_time($reply['created_on'])?>)
+          <p style="margin:0px;" class="text-muted">(<?=$time->show_time($reply['created_on'])?>)
           
 </p>
 

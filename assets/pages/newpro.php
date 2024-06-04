@@ -1,15 +1,13 @@
-global$time;
 <?php
 global $profile;
 global $profile_post;
 global $reels_post;
 global $user;
 global $time;
-//echo '<pre>'; print_r($profile); echo '</pre>';
 ?>
 
 <div class="header__wrapper"  dir="rtl">
-<?php if(checkBlockStatus($profile['id'],$user['id'])){ ?>
+<?php if(!checkBlockStatus($profile['id'],$user['id'])){ ?>
     <header style='width: 100%;
   background: url("assets/images/bg/d-cover.jpg") no-repeat 50% 20% / cover;
   min-height: calc(100px + 15vw);'></header>
@@ -22,7 +20,7 @@ global $time;
       <div class="cols__container">
         <div class="left__col">
           <div class="img__container">
-            <?php if(checkBlockStatus($profile['id'],$user['id'])){ ?>
+            <?php if(!checkBlockStatus($profile['id'],$user['id'])){ ?>
                 <img src="assets/images/profile/default_profile.jpg" alt="default_profile">          
             <!--<span></span>--->
             <?php }else{ ?> 
@@ -52,7 +50,7 @@ if($user['id']!=$profile['id']){
                             </ul>
                         </div>
     <?php
-}elseif(checkBlockStatus($profile['id'],$user['id'])){ ?>
+}elseif(!checkBlockStatus($profile['id'],$user['id'])){ ?>
   <div class="dropdown">
                             <span class="" style="font-size:xx-large" type="button" id="dropdownMenuButton1"
                                 data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-three-dots"></i> </span>
@@ -74,7 +72,7 @@ if($user['id']!=$profile['id']){
             <?php
           } 
 elseif($profile['islocked'] != 1 ){
-    if(!checkBlockStatus($profile['id'],$user['id'])){
+    if(checkBlockStatus($profile['id'],$user['id'])){
     ?>
      <li><span><?=count($profile_post)?></span>پۆستەکان</li>
             <a class="<?count($profile['followers'])<1?'disabled':''?>" data-bs-toggle="modal" data-bs-target="#follower_list"><li><span><?=count($profile['followers'])?></span>شوێنکەوتوەکان</li></a>
@@ -82,8 +80,8 @@ elseif($profile['islocked'] != 1 ){
   <a class="<?=count($profile['following'])<1?'disabled':''?>" data-bs-toggle="modal" data-bs-target="#following_list" ><li><span><?=count($profile['following'])?></span>شوێنکەوتوی</li></a>
   <?php 
   }} elseif($profile['islocked'] == 1 ){
-    if(!checkBlockStatus($profile['id'],$user['id'])){
-        if(checkFollowStatus($profile['id'])){
+    if(checkBlockStatus($profile['id'],$user['id'])){
+        if(!checkFollowStatus($profile['id'])){
 ?>
      <li><span><?=count($profile_post)?></span>پۆستەکان</li>
             <a class="<?count($profile['followers'])<1?'disabled':''?>" data-bs-toggle="modal" data-bs-target="#follower_list"><li><span><?=count($profile['followers'])?></span>شوێنکەوتوەکان</li></a>
@@ -131,20 +129,20 @@ elseif($profile['islocked'] != 1 ){
 ?>
  <div class="d-flex gap-2 align-items-center my-1">
 <?php
-if(checkBlockStatus($user['id'],$profile['id'])){
+if(!checkBlockStatus($user['id'],$profile['id'])){
 ?> 
 <button class="unblockbtn" style="background:#D30000;" data-user-id='<?=$profile['id']?>' ><i class="bi bi-x-octagon-fill"></i> لابردنی هەڵپەساردن</button>
 <?php
-}else if(checkBlockStatus($profile['id'],$user['id'])){ ?>
+}else if(!checkBlockStatus($profile['id'],$user['id'])){ ?>
     <div class="alert alert-danger" role="alert">
     <i class="bi bi-x-octagon-fill"></i> لە لایەن ئەم بەکارهێنەرە هەڵپەساردراوی</div>
    <?php } 
-   elseif(checkStatus($profile['id'])){
+   elseif(!checkStatus($profile['id'])){
     ?>
     <button class=" cancelbtn" style="background:#D30000;" data-user-id='<?=$profile['id']?>' ><span id="boot-icon" class="bi bi-person-dash-fill" style="font-size: 18px; color: rgb(255, 255, 255); position:relative; top:1px;"></span> پاشگەزبوونەوە</button>
     <?php
    }
-   else if(checkFollowStatus($profile['id'])){
+   else if(!checkFollowStatus($profile['id'])){
    ?>
 <button class="unfollowbtn" style="background:#D30000;" data-user-id='<?=$profile['id']?>' ><span id="boot-icon" class="bi bi-x" style="font-size: 18px; color: rgb(255, 255, 255); position:relative; top:1px; -webkit-text-stroke-width: 1px;"></span> لابردن</button>
    
@@ -174,16 +172,14 @@ border:#cccccc solid 4px;
 }
           </style>
           <?php
-
-if(checkBlockStatus($profile['id'],$user['id'])){
+if(!checkBlockStatus($profile['id'],$user['id'])){
     $profile_post = array();
-
    ?>
  <div class="alert alert-secondary text-center" role="alert">
     <i class="bi bi-x-octagon-fill"></i> ناتوانی پۆستەکانی ئەم بەکارهێنەرە ببینی
 </div>
    <?php
-    }elseif(checkLCK($profile['id']) && !checkFollowStatus($profile['id'])){
+    }elseif(!checkLCK($profile['id']) && checkFollowStatus($profile['id'])){
         $profile_post = array();
         $reels_post = array();
     echo '<div class="alert alert-secondary text-center" role="alert">
@@ -201,7 +197,6 @@ if(checkBlockStatus($profile['id'],$user['id'])){
 
 <div class="videoss" id="videos_section">
             <?php
-           
 foreach($profile_post as $post){
     $likes = getLikes($post['id']);
     if(!checkBlockStatus($profile['id'],$user['id'])){
@@ -273,7 +268,7 @@ border-radius: 50%;" class="rounded-circle border">
     
   </ul>
 </div>
-                <div style="font-size:small" class="text-muted"> <?=show_time($post['created_at'])?> </div> 
+                <div style="font-size:small" class="text-muted"> <?=$time->show_time($post['created_at'])?> </div>
                  
 </div>
                         </div>
@@ -301,7 +296,7 @@ border-radius: 50%;" class="rounded-circle border">
                                 <div>&nbsp;&nbsp;&nbsp;</div>
                                 <div class="d-flex flex-column justify-content-start align-items-start">
                                     <h6 style="margin: 0px;"><a href="?u=<?=$cuser['username']?>" class="text-decoration-none text-muted">@<?=$cuser['username']?></a> - <?=$comment['comment']?></h6>
-                                    <p style="margin:0px;" class="text-muted"><?=show_time($comment['created_at'])?></p>
+                                    <p style="margin:0px;" class="text-muted"><?=$time->show_time($comment['created_at'])?></p>
                                 </div>
                             </div>
 
@@ -457,7 +452,7 @@ border-radius: 50%;" class="rounded-circle border">
     
   </ul>
 </div>
-                <div style="font-size:small" class="text-muted"> <?=show_time($post['created_at'])?> </div> 
+                <div style="font-size:small" class="text-muted"> <?=$time->show_time($post['created_at'])?> </div>
                  
 </div>
                         </div>
@@ -505,7 +500,7 @@ border-radius: 50%;" class="rounded-circle border">
                                 <div>&nbsp;&nbsp;&nbsp;</div>
                                 <div class="d-flex flex-column justify-content-start align-items-start">
                                     <h6 style="margin: 0px;"><a href="?u=<?=$cuser['username']?>" class="text-decoration-none text-muted">@<?=$cuser['username']?></a> - <?=$comment['comment']?></h6>
-                                    <p style="margin:0px;" class="text-muted"><?=show_time($comment['created_at'])?></p>
+                                    <p style="margin:0px;" class="text-muted"><?=$time->show_time($comment['created_at'])?></p>
                                 </div>
                             </div>
 
@@ -569,7 +564,7 @@ border-radius: 50%;" class="rounded-circle border">
 foreach($profile['followers'] as $f){
     $fuser = getUser($f['follower_id']);
     $fbtn='';
-    if(checkFollowStatus($f['follower_id'])){
+    if(!checkFollowStatus($f['follower_id'])){
         $fbtn = '<button class="btn btn-sm btn-danger unfollowbtn" style="background: linear-gradient(to bottom, #d9534f 0%, #c12e2a 100%);" data-user-id='.$fuser['id'].' >لابردن</button>';
     }else if($user['id']==$f['follower_id']){
         $fbtn='';
@@ -620,7 +615,7 @@ border-radius: 50%;" class="rounded-circle border">
 foreach($profile['following'] as $f){
     $fuser = getUser($f['user_id']);
     $fbtn='';
-    if(checkFollowStatus($f['user_id'])){
+    if(!checkFollowStatus($f['user_id'])){
         $fbtn = '<button class="btn btn-sm btn-danger unfollowbtn" style="background: linear-gradient(to bottom, #d9534f 0%, #c12e2a 100%);" data-user-id='.$fuser['id'].' >لابردن</button>';
     }else if($user['id']==$f['user_id']){
         $fbtn='';

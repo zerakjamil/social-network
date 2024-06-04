@@ -1,4 +1,5 @@
 <?php
+global $protection;
 require_once 'functions.php';
 require_once 'send_code.php';
 require_once 'sencode_phone.php';
@@ -297,7 +298,7 @@ if(isset($_GET['stepver'])){
         header('location:../../');
 
     }else{
-          $_SESSION['forgot_phone']=filterInputValue($_POST['phone']);
+          $_SESSION['forgot_phone']=$protection->filterInput($_POST['phone']);
            $_SESSION['forgot_code']=$code = rand(111111,999999);
            sendCodePhone('+964'. $_SESSION['forgot_phone'],$code);
             header('location:../../?');

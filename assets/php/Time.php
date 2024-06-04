@@ -2,6 +2,9 @@
 
 class Time
 {
+    function show_time($time){
+        return '<time style="font-size:small" class="timeago text-muted text-small" datetime="'.$time.'"></time>';
+    }
     public function getTime($date){
         return date('H:i - F jS, Y ', strtotime($date));
     }
